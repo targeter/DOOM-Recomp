@@ -17,8 +17,11 @@ let setupTitle = "DOOM Recomp Setup"
 let bundleID = "com.nightsightproductions.doom-recomp"
 let gameTitle = "DOOM"
 let gameAppName = "DOOM"   // the installed app: "DOOM.app"
-// DOOMx64vk.exe of the Steam release this project supports (must match scripts/build.sh).
-let expectedSHA256 = "3d8b4393649f80bdae85c19ae2c985c45ec9ac54f74ab04a18816e30ead63c21"
+// Executable profiles supported by scripts/build_profile.sh. GOG support is experimental.
+let supportedSHA256 = [
+    "3d8b4393649f80bdae85c19ae2c985c45ec9ac54f74ab04a18816e30ead63c21", // Steam
+    "a32df8ffa042090f14fe0a200f1c5d7dddf9c947fac223916c252f826f1ecf11", // GOG (experimental)
+]
 
 // MARK: - Install state
 
@@ -29,6 +32,7 @@ final class InstallState {
     var importSaves = true
     var steamPlay = false   // Steam Play tool (needs NotProton); opt-in
     var gameApp: URL?   // the game folder (contains DOOMx64vk.exe)
+    var gameProfile = "steam"
 
     let resources = Bundle.main.resourceURL!
     var sourceDir: URL { resources.appendingPathComponent("source") }
@@ -72,8 +76,8 @@ func sha256(of url: URL) -> String? {
     return hasher.finalize().map { String(format: "%02x", $0) }.joined()
 }
 
-// DOOM is the Windows release: look in the Steam folders of CrossOver and Whisky bottles (and their
-// extra Steam libraries, listed in libraryfolders.vdf), then in Mac Steam's own folder.
+// Look in Steam folders of CrossOver and Whisky (and extra libraries), Mac Steam, then the known
+// Heroic GOG install location. Other GOG locations can be selected with Browse.
 func detectGame() -> URL? {
     let fm = FileManager.default
     let home = fm.homeDirectoryForCurrentUser
@@ -105,6 +109,7 @@ func detectGame() -> URL? {
             }
         }
     }
+    candidates.append(home.appendingPathComponent("Games/Heroic/DOOM (2016)"))
     return candidates.first(where: isGameApp)
 }
 
@@ -184,8 +189,8 @@ final class WelcomePage: WizardPage {
 
         let title = label("Welcome to \(appName) Setup", bold: true, size: 16)
         title.textColor = .black
-        let body = label("Setup builds a native Apple Silicon version of \(gameTitle) from your own copy of the game.\n\n" +
-                         "You need the Windows version of DOOM (2016) from Steam (for example installed with CrossOver), " +
+        let body = label("Setup builds a native Apple Silicon version of \(gameTitle) from your own copy of the game. Steam is supported; GOG support is experimental.\n\n" +
+                         "You need the Windows version of DOOM (2016) from Steam or GOG, " +
                          "Apple's Command Line Tools (Setup will offer to install them) and an internet connection. " +
                          "Building takes about 15 minutes and needs about 4 GB of temporary disk space.\n\n" +
                          "Click Next to continue.")
@@ -380,13 +385,14 @@ final class GameFilesPage: WizardPage {
             alert.runModal()
             return false
         }
-        guard sha256(of: gameExecutable(app)) == expectedSHA256 else {
+        guard let sha = sha256(of: gameExecutable(app)), supportedSHA256.contains(sha) else {
             alert.messageText = "This copy of the game is not supported."
-            alert.informativeText = "\(appName) is built for the current Steam release of \(gameTitle) (2016) for Windows. " +
+            alert.informativeText = "\(appName) supports the current Steam release and the experimental GOG profile of \(gameTitle) (2016) for Windows. " +
                                     "Make sure the game is fully downloaded and updated, and has not been modified."
             alert.runModal()
             return false
         }
+        state.gameProfile = sha == "a32df8ffa042090f14fe0a200f1c5d7dddf9c947fac223916c252f826f1ecf11" ? "gog" : "steam"
         return true
     }
 
@@ -550,7 +556,8 @@ final class Installation {
         try build(in: source, game: game)
 
         // Install the app.
-        let built = source.appendingPathComponent("build/\(gameAppName).app")
+        let buildDir = state.gameProfile == "gog" ? "build-gog" : "build"
+        let built = source.appendingPathComponent("\(buildDir)/\(gameAppName).app")
         let app = state.installedApp
         log("Output folder: \(state.installDir.path)")
         do {

@@ -13,6 +13,17 @@ APP_CATEGORY = public.app-category.action-games
 GAME_SRC  = src/game.c src/native_idtech.c
 NATIVE    = tools/native.txt
 PATCHES   = tools/patches.txt
+GAME_PROFILE ?= steam
+ifeq ($(GAME_PROFILE),gog)
+# GOG executable uses different function addresses: translate guest code directly, with no
+# Steam-address native overrides, and apply only its profile-specific menu instruction patches.
+NATIVE =
+PATCHES = tools/patches-gog.txt
+GEN_DIR = gen-gog
+BUILD = build-gog
+else ifneq ($(GAME_PROFILE),steam)
+$(error Unsupported GAME_PROFILE '$(GAME_PROFILE)' (choose steam or gog))
+endif
 # the game's DLLs that contain code, translated as modules (rules below)
 EXTRA_LIBS_FORCE = $(BUILD)/libsuperscriptx64.a $(BUILD)/libbink2w64.a
 

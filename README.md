@@ -47,6 +47,23 @@ Some things worth knowing:
   - The fullscreen resolutions in the game's Video settings are scaled to your screen; windowed
     mode opens a window of the chosen size.
 
+### Experimental GOG builds
+
+The build script also recognizes a specific GOG Windows release of DOOM (2016):
+
+```sh
+bash scripts/build.sh "/path/to/DOOM (2016)"
+```
+
+GOG compatibility is experimental; full gameplay has not been verified. This profile translates the
+original game functions without the Steam-specific native replacements, and uses GOG-specific
+instruction patches to hide the unsupported OpenGL option in the Video menu.
+Vulkan is also forced at launch.
+Generated executable code and build output are isolated in `gen-gog/` and `build-gog/`; the app is
+`build-gog/DOOM.app`. Unknown executable hashes and mismatched code DLLs are rejected.
+The build needs the pinned Python packages in `.venv` (Python 3.13 works) and a compatible
+KosmicKrisp driver for gameplay; the source checkout does not include a prebuilt driver.
+
 ### Steam Play (optional, needs NotProton)
 
 Steam for Mac has the same compatibility-tool support as Steam on Linux, but it is switched off.
